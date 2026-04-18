@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "@/lib/auth-client";
 import { showMessage } from "@/components/MessageModal";
+import ConfirmModal from "@/components/ConfirmModal";
 import {
     getMedicalTests,
     addMedicalTest,
@@ -19,6 +20,8 @@ import {
 import AddMedicalTestModal from "./AddMedicalTestModal";
 import EditMedicalTestModal from "./EditMedicalTestModal";
 import DeleteMedicalTestModal from "./DeleteMedicalTestModal";
+import { downloadMedicalTestsExcel } from "./DownloadMedicalTestsExcel";
+import DownloadMedicalTestsPdf from "./DownloadMedicalTestsPdf";
 
 export default function MedicalTestsPage() {
     const { data: session, isPending } = useSession();
@@ -33,6 +36,7 @@ export default function MedicalTestsPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [testToDelete, setTestToDelete] = useState<MedicalTest | null>(null);
     const [testToEdit, setTestToEdit] = useState<MedicalTest | null>(null);
+    const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
 
     useEffect(() => {
         if (!isPending && !session) router.push("/");
@@ -106,6 +110,33 @@ export default function MedicalTestsPage() {
         }
     };
 
+    const handleDownloadExcel = async () => {
+        const confirmed = await ConfirmModal("Download Medical Tests to Excel?", {
+            okText: "Yes, Download",
+            cancelText: "Cancel",
+            okColor: "bg-green-600 hover:bg-green-700",
+        });
+        if (!confirmed) return;
+        setIsDownloadingExcel(true);
+        try {
+            const toExport = tests.filter(
+                (test) =>
+                    test.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (test.category_name &&
+                        test.category_name
+                            .toLowerCase()
+                            .includes(searchQuery.toLowerCase())) ||
+                    (test.uom_name &&
+                        test.uom_name
+                            .toLowerCase()
+                            .includes(searchQuery.toLowerCase())),
+            );
+            await downloadMedicalTestsExcel(toExport);
+        } finally {
+            setIsDownloadingExcel(false);
+        }
+    };
+
     if (isPending || !session) return <div className="p-6">Loading...</div>;
 
     const filteredTests = tests.filter(
@@ -158,6 +189,18 @@ export default function MedicalTestsPage() {
                     />
                 </div>
                 <div className="flex gap-2">
+                    <button
+                        onClick={handleDownloadExcel}
+                        disabled={isDownloadingExcel}
+                        className="rounded-md bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors shadow-sm whitespace-nowrap"
+                    >
+                        {isDownloadingExcel ? "Preparing..." : "Download Excel"}
+                    </button>
+                    <DownloadMedicalTestsPdf
+                        tests={filteredTests}
+                        totalCount={tests.length}
+                        searchQuery={searchQuery}
+                    />
                     <button
                         onClick={() => setIsAddModalOpen(true)}
                         className="rounded-md bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700"

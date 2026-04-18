@@ -13,6 +13,8 @@ import {
     deleteTestCategory,
     TestCategory,
 } from "../actions";
+import { downloadCategoriesExcel } from "./DownloadCategoriesExcel";
+import DownloadCategoriesPdf from "./DownloadCategoriesPdf";
 
 export default function TestCategoriesPage() {
     const { data: session, isPending } = useSession();
@@ -20,6 +22,7 @@ export default function TestCategoriesPage() {
 
     const [categories, setCategories] = useState<TestCategory[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
 
     useEffect(() => {
         if (!isPending && !session) router.push("/");
@@ -82,6 +85,21 @@ export default function TestCategoriesPage() {
         }
     };
 
+    const handleDownloadExcel = async () => {
+        const confirmed = await ConfirmModal("Download Categories to Excel?", {
+            okText: "Yes, Download",
+            cancelText: "Cancel",
+            okColor: "bg-green-600 hover:bg-green-700",
+        });
+        if (!confirmed) return;
+        setIsDownloadingExcel(true);
+        try {
+            await downloadCategoriesExcel(categories);
+        } finally {
+            setIsDownloadingExcel(false);
+        }
+    };
+
     if (isPending || !session) return <div className="p-6">Loading...</div>;
 
     return (
@@ -111,12 +129,22 @@ export default function TestCategoriesPage() {
                 <h1 className="text-xl font-bold text-gray-900">
                     Test Categories
                 </h1>
-                <button
-                    onClick={handleAdd}
-                    className="rounded-md bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                >
-                    + Add Category
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleDownloadExcel}
+                        disabled={isDownloadingExcel}
+                        className="rounded-md bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors shadow-sm whitespace-nowrap"
+                    >
+                        {isDownloadingExcel ? "Preparing..." : "Download Excel"}
+                    </button>
+                    <DownloadCategoriesPdf categories={categories} />
+                    <button
+                        onClick={handleAdd}
+                        className="rounded-md bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                        + Add Category
+                    </button>
+                </div>
             </div>
 
             <div className="max-h-[calc(100vh-260px)] overflow-auto rounded border bg-white shadow">

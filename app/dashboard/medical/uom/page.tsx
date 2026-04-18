@@ -8,6 +8,8 @@ import { useSession } from "@/lib/auth-client";
 import { showMessage } from "@/components/MessageModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import { getUoms, addUom, updateUom, deleteUom, UOM } from "../actions";
+import { downloadUomExcel } from "./DownloadUomExcel";
+import DownloadUomPdf from "./DownloadUomPdf";
 
 export default function UomPage() {
     const { data: session, isPending } = useSession();
@@ -15,6 +17,7 @@ export default function UomPage() {
 
     const [uoms, setUoms] = useState<UOM[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
 
     useEffect(() => {
         if (!isPending && !session) router.push("/");
@@ -77,6 +80,21 @@ export default function UomPage() {
         }
     };
 
+    const handleDownloadExcel = async () => {
+        const confirmed = await ConfirmModal("Download Units of Measure to Excel?", {
+            okText: "Yes, Download",
+            cancelText: "Cancel",
+            okColor: "bg-green-600 hover:bg-green-700",
+        });
+        if (!confirmed) return;
+        setIsDownloadingExcel(true);
+        try {
+            await downloadUomExcel(uoms);
+        } finally {
+            setIsDownloadingExcel(false);
+        }
+    };
+
     if (isPending || !session) return <div className="p-6">Loading...</div>;
 
     return (
@@ -106,12 +124,22 @@ export default function UomPage() {
                 <h1 className="text-xl font-bold text-gray-900">
                     Units of Measure
                 </h1>
-                <button
-                    onClick={handleAdd}
-                    className="rounded-md bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                >
-                    + Add UOM
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleDownloadExcel}
+                        disabled={isDownloadingExcel}
+                        className="rounded-md bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors shadow-sm whitespace-nowrap"
+                    >
+                        {isDownloadingExcel ? "Preparing..." : "Download Excel"}
+                    </button>
+                    <DownloadUomPdf uoms={uoms} />
+                    <button
+                        onClick={handleAdd}
+                        className="rounded-md bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                        + Add UOM
+                    </button>
+                </div>
             </div>
 
             <div className="max-h-[calc(100vh-260px)] overflow-auto rounded border bg-white shadow">
